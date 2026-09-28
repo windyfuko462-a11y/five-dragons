@@ -1,0 +1,812 @@
+それではゲームを作ってください
+
+「5色の龍」を、実際に遊べるミニゲームとして作りました。
+問題を選ぶたびに5匹が問題を食べ、「何を解くか」そのものが世界のバランスを変えます。
+
+細部を調整中
+動かせないようです
+
+そうですね。前のものはゲーム画面のコード自体は入っていましたが、ChatGPT上で実行される形になっていませんでした。
+
+今回は、実際にこの画面内でクリックして遊べる形に作り直します。
+
+難しいようですね。コードだけでいいです
+
+もちろんです。今回はブラウザでそのまま動く1ファイル完結版にします。5色の龍.htmlとして保存して、Chromeで開けば遊べます。
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5色の龍</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Yu Gothic", sans-serif;
+  background: #f5f1e8;
+  color: #332d2a;
+}
+
+.game {
+  max-width: 900px;
+  margin: auto;
+  padding: 25px;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 5px;
+}
+
+.subtitle {
+  text-align: center;
+  color: #756d66;
+  margin-bottom: 25px;
+}
+
+/* 龍 */
+
+.dragons {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+.dragon {
+  background: white;
+  border-radius: 15px;
+  padding: 12px;
+  text-align: center;
+  box-shadow: 0 2px 8px #0001;
+}
+
+.dragon-icon {
+  font-size: 40px;
+}
+
+.dragon-name {
+  font-weight: bold;
+}
+
+.dragon-type {
+  font-size: 12px;
+  color: #777;
+}
+
+.weight {
+  font-size: 22px;
+  margin-top: 5px;
+}
+
+.bar {
+  height: 9px;
+  background: #ddd;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 7px;
+}
+
+.bar-inner {
+  height: 100%;
+  transition: width .4s;
+}
+
+/* 世界 */
+
+.world {
+  background: white;
+  margin-top: 20px;
+  padding: 18px;
+  border-radius: 15px;
+}
+
+.balance {
+  text-align: center;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.message {
+  text-align: center;
+  margin-top: 8px;
+  color: #706861;
+}
+
+/* 問題 */
+
+.question-title {
+  margin-top: 25px;
+  margin-bottom: 12px;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.choices {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.choice {
+  background: white;
+  border: 2px solid transparent;
+  border-radius: 15px;
+  padding: 18px;
+  cursor: pointer;
+  text-align: left;
+  min-height: 150px;
+  font-size: 15px;
+  transition: .15s;
+}
+
+.choice:hover {
+  border-color: #78637e;
+  transform: translateY(-3px);
+}
+
+.choice-title {
+  font-weight: bold;
+  font-size: 17px;
+  margin-bottom: 12px;
+}
+
+.tag {
+  display: inline-block;
+  padding: 4px 7px;
+  margin: 2px;
+  border-radius: 20px;
+  background: #eee;
+  font-size: 11px;
+}
+
+.log {
+  margin-top: 20px;
+  min-height: 30px;
+  text-align: center;
+  color: #655d58;
+}
+
+.reset {
+  display: block;
+  margin: 20px auto;
+  padding: 10px 25px;
+  border: 0;
+  border-radius: 20px;
+  background: #665873;
+  color: white;
+  cursor: pointer;
+}
+
+@media(max-width:650px) {
+  .dragons {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  .dragon {
+    padding: 5px;
+  }
+
+  .dragon-icon {
+    font-size: 25px;
+  }
+
+  .dragon-type {
+    display: none;
+  }
+
+  .weight {
+    font-size: 16px;
+  }
+
+  .choices {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="game">
+
+<h1>🐉 5色の龍</h1>
+
+<div class="subtitle">
+未知の問題の絡まりを、5匹の龍で食べつくせ。
+</div>
+
+<div class="dragons" id="dragons"></div>
+
+<div class="world">
+  <div class="balance" id="balance"></div>
+  <div class="message" id="message"></div>
+</div>
+
+<div class="question-title">
+  次に、どの「未知」を食べる？
+</div>
+
+<div class="choices" id="choices"></div>
+
+<div class="log" id="log"></div>
+
+<button class="reset" onclick="resetGame()">
+最初から
+</button>
+
+</div>
+
+<script>
+
+const dragons = [
+  {
+    name: "赤龍",
+    type: "欲望・経済",
+    icon: "🐲",
+    color: "#c9534d"
+  },
+  {
+    name: "青龍",
+    type: "知識・情報",
+    icon: "🐉",
+    color: "#4b7fa8"
+  },
+  {
+    name: "緑龍",
+    type: "生命・環境",
+    icon: "🐲",
+    color: "#579267"
+  },
+  {
+    name: "黄龍",
+    type: "人間関係・文化",
+    icon: "🐉",
+    color: "#c39a3c"
+  },
+  {
+    name: "紫龍",
+    type: "制度・歴史",
+    icon: "🐲",
+    color: "#80619b"
+  }
+];
+
+
+/*
+  各問題
+
+  v =
+
+  [赤, 青, 緑, 黄, 紫]
+
+  数字が大きいほど、その龍が多く食べる。
+*/
+
+const problems = [
+
+  {
+    title: "なぜ若者がこの町から出ていく？",
+    v: [2,1,1,2,1]
+  },
+
+  {
+    title: "なぜ便利なのに、人は疲れている？",
+    v: [2,2,2,1,1]
+  },
+
+  {
+    title: "なぜ昔からある店が消えていく？",
+    v: [2,1,1,2,2]
+  },
+
+  {
+    title: "なぜ健康情報を知っていても行動できない？",
+    v: [1,2,2,2,1]
+  },
+
+  {
+    title: "なぜ同じニュースを見ても意見が分かれる？",
+    v: [1,2,0,2,2]
+  },
+
+  {
+    title: "なぜ空き家が増えるのに、住みたい人がいる？",
+    v: [2,1,2,1,2]
+  },
+
+  {
+    title: "なぜ『いいもの』が売れ続けるとは限らない？",
+    v: [2,2,1,2,1]
+  },
+
+  {
+    title: "なぜ人は、自分に必要なものを見失う？",
+    v: [2,2,2,2,1]
+  },
+
+  {
+    title: "なぜ人は同じ失敗を繰り返す？",
+    v: [1,2,2,2,2]
+  },
+
+  {
+    title: "なぜ古い仕組みは簡単には消えない？",
+    v: [1,1,1,2,3]
+  },
+
+  {
+    title: "なぜ人は『みんながやっている』ことを選ぶ？",
+    v: [2,1,0,3,1]
+  },
+
+  {
+    title: "なぜ自然を守ろうとしても暮らしと衝突する？",
+    v: [2,1,3,1,2]
+  }
+
+];
+
+
+let weights;
+let round;
+let usedProblems;
+
+
+/* ゲーム開始 */
+
+function resetGame() {
+
+  weights = [50,50,50,50,50];
+
+  round = 1;
+
+  usedProblems = [];
+
+  document.getElementById("log").innerHTML = "";
+
+  draw();
+
+}
+
+
+/* 龍を表示 */
+
+function drawDragons() {
+
+  const area = document.getElementById("dragons");
+
+  area.innerHTML = "";
+
+  dragons.forEach((dragon,i) => {
+
+    const div = document.createElement("div");
+
+    div.className = "dragon";
+
+    div.innerHTML = `
+
+      <div class="dragon-icon">
+        ${dragon.icon}
+      </div>
+
+      <div class="dragon-name">
+        ${dragon.name}
+      </div>
+
+      <div class="dragon-type">
+        ${dragon.type}
+      </div>
+
+      <div class="weight">
+        ${Math.round(weights[i])}
+      </div>
+
+      <div class="bar">
+
+        <div
+          class="bar-inner"
+          style="
+            width:${weights[i]}%;
+            background:${dragon.color};
+          "
+        ></div>
+
+      </div>
+
+    `;
+
+    area.appendChild(div);
+
+  });
+
+}
+
+
+/* 世界のバランス */
+
+function drawBalance() {
+
+  const max = Math.max(...weights);
+
+  const min = Math.min(...weights);
+
+  const difference = max - min;
+
+  let score = Math.round(
+    100 - difference * 1.5
+  );
+
+  score = Math.max(0,Math.min(100,score));
+
+  document.getElementById("balance").innerHTML =
+    "世界の均衡度　" + score + "%";
+
+
+  let message;
+
+  if(difference < 10) {
+
+    message =
+      "✨ 五匹は美しく均衡している。";
+
+  }
+
+  else if(difference < 20) {
+
+    message =
+      "世界に少し偏りが出てきた。";
+
+  }
+
+  else if(difference < 30) {
+
+    message =
+      "⚠ 龍の一部が太りすぎている。";
+
+  }
+
+  else {
+
+    message =
+      "⚠ 世界が大きく偏っている。痩せた龍を探せ。";
+
+  }
+
+  document.getElementById("message").innerHTML =
+    message;
+
+}
+
+
+/* 次の未知を表示 */
+
+function drawChoices() {
+
+  const area =
+    document.getElementById("choices");
+
+  area.innerHTML = "";
+
+
+  /*
+    現在一番痩せている龍を調べる。
+
+    その龍が食べられる問題を
+    優先的に候補へ入れる。
+  */
+
+  const minWeight =
+    Math.min(...weights);
+
+  const thin = weights.indexOf(minWeight);
+
+
+  let candidates =
+    problems
+      .map((p,index)=>({
+        p,
+        index
+      }))
+      .filter(x =>
+        !usedProblems.includes(x.index)
+      );
+
+
+  /*
+    すべてランダムではなく、
+
+    「痩せている龍を助ける問題」
+
+    が少し出やすくなる。
+  */
+
+  candidates.sort((a,b)=>{
+
+    const av = a.p.v[thin];
+
+    const bv = b.p.v[thin];
+
+    return bv-av;
+
+  });
+
+
+  /*
+    上位問題とランダム問題を混ぜる
+  */
+
+  const selected = [];
+
+  if(candidates.length > 0)
+    selected.push(candidates[0]);
+
+  if(candidates.length > 1)
+    selected.push(
+      candidates[
+        Math.floor(
+          Math.random() *
+          Math.min(4,candidates.length)
+        )
+      ]
+    );
+
+  if(candidates.length > 2)
+    selected.push(
+      candidates[
+        Math.floor(
+          Math.random() *
+          candidates.length
+        )
+      ]
+    );
+
+
+  /*
+    重複を削除
+  */
+
+  const unique = [];
+
+  selected.forEach(x=>{
+
+    if(
+      x &&
+      !unique.some(
+        y=>y.index===x.index
+      )
+    ) {
+      unique.push(x);
+    }
+
+  });
+
+
+  unique.forEach(item=>{
+
+    const p = item.p;
+
+    const button =
+      document.createElement("button");
+
+    button.className = "choice";
+
+
+    let tags = "";
+
+    p.v.forEach((value,i)=>{
+
+      if(value > 0) {
+
+        tags += `
+          <span class="tag">
+            ${dragons[i].name}
+            +${value}
+          </span>
+        `;
+
+      }
+
+    });
+
+
+    button.innerHTML = `
+
+      <div class="choice-title">
+        ${p.title}
+      </div>
+
+      <div>
+        ${tags}
+      </div>
+
+    `;
+
+
+    button.onclick = function() {
+
+      eatProblem(item.index);
+
+    };
+
+
+    area.appendChild(button);
+
+  });
+
+}
+
+
+/* 問題を龍に食べさせる */
+
+function eatProblem(index) {
+
+  const problem =
+    problems[index];
+
+
+  usedProblems.push(index);
+
+
+  let result = [];
+
+
+  problem.v.forEach((amount,i)=>{
+
+    if(amount > 0) {
+
+      /*
+        1ポイントにつき
+        龍が6太る
+      */
+
+      weights[i] += amount * 6;
+
+
+      /*
+        上限
+      */
+
+      weights[i] =
+        Math.min(
+          100,
+          weights[i]
+        );
+
+
+      result.push(
+        dragons[i].name +
+        " +" +
+        amount
+      );
+
+    }
+
+  });
+
+
+  document.getElementById("log").innerHTML =
+
+    "「" +
+    problem.title +
+    "」を食べた → " +
+    result.join("　");
+
+
+  round++;
+
+
+  if(round > 8) {
+
+    finishGame();
+
+    return;
+
+  }
+
+
+  draw();
+
+}
+
+
+/* 終了 */
+
+function finishGame() {
+
+  drawDragons();
+
+  drawBalance();
+
+
+  const max =
+    Math.max(...weights);
+
+  const min =
+    Math.min(...weights);
+
+  const difference =
+    max-min;
+
+
+  let message;
+
+
+  if(difference < 15) {
+
+    message =
+      "🎉 五匹の龍がうまく循環した！<br><br>" +
+      "あなたは問題を解いただけではない。<br>" +
+      "「次に何を知らなければならないか」を選んだ。";
+
+  }
+
+  else if(difference < 30) {
+
+    message =
+      "五匹はかなり食べた。<br><br>" +
+      "しかし、世界にはまだ偏りが残っている。<br>" +
+      "別の未知を選んでいたら、世界は違っていたかもしれない。";
+
+  }
+
+  else {
+
+    message =
+      "⚠ 一匹の龍が大きく太った。<br><br>" +
+      "問題をたくさん解いたのに、世界は均衡しなかった。<br>" +
+      "重要だったのは「何を解いたか」ではなく、<br>" +
+      "「何を選ばなかったか」だった。";
+
+  }
+
+
+  document.getElementById("choices").innerHTML = `
+
+    <div style="
+      grid-column:1/-1;
+      background:white;
+      padding:25px;
+      border-radius:15px;
+      text-align:center;
+    ">
+
+      <h2>8つの未知を食べ終えた</h2>
+
+      <p>
+        ${message}
+      </p>
+
+    </div>
+
+  `;
+
+}
+
+
+/* 全画面更新 */
+
+function draw() {
+
+  drawDragons();
+
+  drawBalance();
+
+  drawChoices();
+
+}
+
+
+/* スタート */
+
+resetGame();
+
+</script>
+
+</body>
+</html>
